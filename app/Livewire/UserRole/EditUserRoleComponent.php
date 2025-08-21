@@ -17,13 +17,13 @@ class EditUserRoleComponent extends Component
     // ========================================
     // PROPERTIES - Data Storage
     // ========================================
-    
+
     // Basic user info
     public $userPermissionId;           // The user ID we're editing
     public $users;                      // All users for dropdown
     public $user_id;                    // Selected user ID
     public $selectedUser = null;        // User object being edited
-    
+
     // UPDATED: Changed to handle multiple roles
     public $selectedRoles = [];         // Array of selected role IDs
 
@@ -43,17 +43,17 @@ class EditUserRoleComponent extends Component
     // ========================================
     // INITIALIZATION - Setup Component
     // ========================================
-    
+
     public function mount($id)
     {
         $this->userPermissionId = $id;
 
         // STEP 1: Load basic data
         $this->loadBasicData();
-        
+
         // STEP 2: Load selected user and their current settings
         $this->loadUserData();
-        
+
         // STEP 3: Load available permissions structure
         $this->loadPermissionStructure();
     }
@@ -76,7 +76,7 @@ class EditUserRoleComponent extends Component
         $user = User::with('rolePermissions')->findOrFail($this->userPermissionId);
         $this->user_id = $user->id;
         $this->selectedUser = $user;
-        
+
         // Load user's current roles from pivot table
         $this->selectedRoles = $user->rolePermissions->pluck('id')->toArray();
 
@@ -97,33 +97,7 @@ class EditUserRoleComponent extends Component
     /**
      * Load permissions from all selected roles
      */
-    private function loadRoleBasedPermissions()
-    {
-        if (empty($this->selectedRoles)) {
-            $this->roleSidebarPermissions = [];
-            $this->rolePageWisePermissions = [];
-            return;
-        }
 
-        // Get all selected roles
-        $roles = RoleAndPermission::whereIn('id', $this->selectedRoles)->get();
-        
-        $allRoleSidebarPermissions = [];
-        $allRolePagePermissions = [];
-
-        foreach ($roles as $role) {
-            // Merge permissions from all roles
-            $roleSidebarPerms = $role->sidebar_permissions ?? [];
-            $rolePagePerms = $role->page_wise_permissions ?? [];
-
-            $allRoleSidebarPermissions = array_merge($allRoleSidebarPermissions, $roleSidebarPerms);
-            $allRolePagePermissions = array_merge($allRolePagePermissions, $rolePagePerms);
-        }
-
-        // Remove duplicates
-        $this->roleSidebarPermissions = array_unique($allRoleSidebarPermissions);
-        $this->rolePageWisePermissions = array_unique($allRolePagePermissions);
-    }
 
     /**
      * Load the structure of available permissions
@@ -169,139 +143,142 @@ class EditUserRoleComponent extends Component
      * UPDATED METHOD: This runs when selectedRoles array changes
      * This handles multiple role selection
      */
+
+
+
+
+
+
+
 public function updatedSelectedRoles($value)
 {
+    // Skip if value is empty or same as current
+    if (empty($value) && empty($this->selectedRoles)) {
+        return;
+    }
+
     // Dispatch loading state
     $this->dispatch('dropdown-loading');
-    
+
     try {
+        // Ensure we have an array
+        if (!is_array($value)) {
+            $value = [];
+        }
+
+        // Update the property
+        $this->selectedRoles = array_map('intval', $value);
+
         // Clear everything if no roles selected
         if (empty($this->selectedRoles)) {
             $this->clearAllRolePermissions();
-            return;
+        } else {
+            // Load permissions from all selected roles
+            $this->loadRoleBasedPermissions();
+
+            // RESET USER-SPECIFIC PERMISSIONS to match combined role permissions
+            $this->sidebarPermissions = $this->roleSidebarPermissions;
+            $this->pageWisePermissions = $this->rolePageWisePermissions;
         }
 
-        // Load permissions from all selected roles
-        $this->loadRoleBasedPermissions();
-
-        // RESET USER-SPECIFIC PERMISSIONS to match combined role permissions
-        $this->sidebarPermissions = $this->roleSidebarPermissions;
-        $this->pageWisePermissions = $this->rolePageWisePermissions;
+        // Dispatch events for frontend
+        $this->dispatch('roles-updated', $this->selectedRoles);
 
         // Log for debugging
         Log::info('Roles changed to: ' . implode(', ', $this->selectedRoles), [
             'role_sidebar_permissions' => $this->roleSidebarPermissions,
             'role_page_permissions' => $this->rolePageWisePermissions
         ]);
-        
+
     } catch (\Exception $e) {
         Log::error('Error updating selected roles: ' . $e->getMessage(), [
-            'selected_roles' => $this->selectedRoles
+            'selected_roles' => $this->selectedRoles,
+            'error' => $e->getTraceAsString()
         ]);
-        
+
         session()->flash('error', 'Error updating role permissions. Please try again.');
     } finally {
-        // Dispatch loaded state regardless of success or failure
+        // Always dispatch loaded state
         $this->dispatch('dropdown-loaded');
     }
 }
 
 /**
- * Toggle role selection (add/remove role)
+ * Load permissions from all selected roles - OPTIMIZED
  */
-public function toggleRole($roleId)
+private function loadRoleBasedPermissions()
 {
-    // Dispatch loading state
-    $this->dispatch('dropdown-loading');
-    
-    try {
-        // Initialize selectedRoles as array if it's null
-        if (!is_array($this->selectedRoles)) {
-            $this->selectedRoles = [];
-        }
+    // Reset arrays
+    $this->roleSidebarPermissions = [];
+    $this->rolePageWisePermissions = [];
 
-        // Check if role is already selected
-        $key = array_search($roleId, $this->selectedRoles);
-        
-        if ($key !== false) {
-            // Role is selected, remove it
-            unset($this->selectedRoles[$key]);
-            $this->selectedRoles = array_values($this->selectedRoles); // Re-index array
-        } else {
-            // Role is not selected, add it
-            $this->selectedRoles[] = $roleId;
-        }
-
-        // Trigger the updated method to reload permissions
-        $this->updatedSelectedRoles($this->selectedRoles);
-
-        // Log for debugging
-        $roleName = collect($this->roles)->firstWhere('id', $roleId)?->role_name ?? 'Unknown Role';
-        $action = $key !== false ? 'removed from' : 'added to';
-        
-        Log::info("Role {$roleName} {$action} user selection", [
-            'role_id' => $roleId,
-            'selected_roles' => $this->selectedRoles
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Error toggling role: ' . $e->getMessage(), [
-            'role_id' => $roleId,
-            'selected_roles' => $this->selectedRoles
-        ]);
-        
-        session()->flash('error', 'Error updating role selection. Please try again.');
-    } finally {
-        // Dispatch loaded state regardless of success or failure
-        $this->dispatch('dropdown-loaded');
+    if (empty($this->selectedRoles)) {
+        return;
     }
+
+    // Get all selected roles in one query
+    $roles = RoleAndPermission::whereIn('id', $this->selectedRoles)->get();
+
+    $allRoleSidebarPermissions = [];
+    $allRolePagePermissions = [];
+
+    foreach ($roles as $role) {
+        // Handle both JSON and array formats
+        $roleSidebarPerms = $role->sidebar_permissions;
+        if (is_string($roleSidebarPerms)) {
+            $roleSidebarPerms = json_decode($roleSidebarPerms, true) ?: [];
+        } elseif (!is_array($roleSidebarPerms)) {
+            $roleSidebarPerms = [];
+        }
+
+        $rolePagePerms = $role->page_wise_permissions;
+        if (is_string($rolePagePerms)) {
+            $rolePagePerms = json_decode($rolePagePerms, true) ?: [];
+        } elseif (!is_array($rolePagePerms)) {
+            $rolePagePerms = [];
+        }
+
+        // Merge permissions from all roles
+        $allRoleSidebarPermissions = array_merge($allRoleSidebarPermissions, $roleSidebarPerms);
+        $allRolePagePermissions = array_merge($allRolePagePermissions, $rolePagePerms);
+    }
+
+    // Remove duplicates and reindex
+    $this->roleSidebarPermissions = array_values(array_unique($allRoleSidebarPermissions));
+    $this->rolePageWisePermissions = array_values(array_unique($allRolePagePermissions));
 }
 
 /**
- * Remove a specific role
+ * Add method to force refresh permissions table
  */
-public function removeRole($roleId)
+public function refreshPermissions()
 {
-    // Dispatch loading state
     $this->dispatch('dropdown-loading');
     
     try {
-        // Initialize selectedRoles as array if it's null
-        if (!is_array($this->selectedRoles)) {
-            $this->selectedRoles = [];
-        }
-
-        // Find and remove the role
-        $key = array_search($roleId, $this->selectedRoles);
-        
-        if ($key !== false) {
-            unset($this->selectedRoles[$key]);
-            $this->selectedRoles = array_values($this->selectedRoles); // Re-index array
-            
-            // Trigger the updated method to reload permissions
-            $this->updatedSelectedRoles($this->selectedRoles);
-            
-            // Log for debugging
-            $roleName = collect($this->roles)->firstWhere('id', $roleId)?->role_name ?? 'Unknown Role';
-            
-            Log::info("Role {$roleName} removed from user selection", [
-                'role_id' => $roleId,
-                'remaining_roles' => $this->selectedRoles
-            ]);
-        }
-
+        $this->loadRoleBasedPermissions();
+        $this->dispatch('permissions-refreshed');
     } catch (\Exception $e) {
-        Log::error('Error removing role: ' . $e->getMessage(), [
-            'role_id' => $roleId,
-            'selected_roles' => $this->selectedRoles
-        ]);
-        
-        session()->flash('error', 'Error removing role. Please try again.');
+        Log::error('Error refreshing permissions: ' . $e->getMessage());
     } finally {
-        // Dispatch loaded state regardless of success or failure
         $this->dispatch('dropdown-loaded');
     }
 }
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
 
     /**
      * Clear all role-based permissions
@@ -334,8 +311,8 @@ public function removeRole($roleId)
      */
     public function isSidebarSelected($elementName): bool
     {
-        return in_array($elementName, $this->sidebarPermissions) || 
-               in_array($elementName, $this->roleSidebarPermissions);
+        return in_array($elementName, $this->sidebarPermissions) ||
+            in_array($elementName, $this->roleSidebarPermissions);
     }
 
     /**
@@ -344,8 +321,8 @@ public function removeRole($roleId)
      */
     public function isPagePermissionSelected($permissionValue): bool
     {
-        return in_array($permissionValue, $this->pageWisePermissions) || 
-               in_array($permissionValue, $this->rolePageWisePermissions);
+        return in_array($permissionValue, $this->pageWisePermissions) ||
+            in_array($permissionValue, $this->rolePageWisePermissions);
     }
 
     public function toggleSidebarPermission($elementName)
@@ -396,7 +373,7 @@ public function removeRole($roleId)
 
         // AUTO-MANAGE SIDEBAR: If page has any permissions, sidebar should be checked
         $this->autoManageSidebarBasedOnPagePermissions($pageName);
-        
+
         $this->cleanupPermissionArrays();
     }
 
@@ -406,8 +383,10 @@ public function removeRole($roleId)
 
     private function removeSidebarPermission($elementName)
     {
-        $this->sidebarPermissions = array_filter($this->sidebarPermissions, 
-            fn($item) => $item !== $elementName);
+        $this->sidebarPermissions = array_filter(
+            $this->sidebarPermissions,
+            fn($item) => $item !== $elementName
+        );
     }
 
     private function addSidebarPermission($elementName)
@@ -419,8 +398,10 @@ public function removeRole($roleId)
 
     private function removePagePermission($permissionValue)
     {
-        $this->pageWisePermissions = array_filter($this->pageWisePermissions, 
-            fn($item) => $item !== $permissionValue);
+        $this->pageWisePermissions = array_filter(
+            $this->pageWisePermissions,
+            fn($item) => $item !== $permissionValue
+        );
     }
 
     private function addPagePermission($permissionValue)
@@ -432,8 +413,10 @@ public function removeRole($roleId)
 
     private function removeAllPagePermissionsForElement($elementName)
     {
-        $this->pageWisePermissions = array_filter($this->pageWisePermissions, 
-            fn($permission) => !str_starts_with($permission, $elementName . ':'));
+        $this->pageWisePermissions = array_filter(
+            $this->pageWisePermissions,
+            fn($permission) => !str_starts_with($permission, $elementName . ':')
+        );
     }
 
     private function autoAddPagePermissionsForElement($elementName)
@@ -456,7 +439,7 @@ public function removeRole($roleId)
         // Check if this page has any user-specific OR role-based permissions
         $hasUserPagePermissions = collect($this->pageWisePermissions)
             ->contains(fn($perm) => str_starts_with($perm, $pageName . ':'));
-        
+
         $hasRolePagePermissions = collect($this->rolePageWisePermissions)
             ->contains(fn($perm) => str_starts_with($perm, $pageName . ':'));
 
@@ -576,11 +559,11 @@ public function removeRole($roleId)
 
         foreach ($allPageNames as $pageName) {
             $isSidebarSelected = in_array($pageName, $this->sidebarPermissions);
-            
+
             if ($isSidebarSelected) {
                 $hasAnyPageOperations = collect($this->pageWisePermissions)
                     ->contains(fn($perm) => str_starts_with($perm, $pageName . ':'));
-                
+
                 if (!$hasAnyPageOperations && isset($this->pageWisePermissionData[$pageName])) {
                     foreach ($this->pageWisePermissionData[$pageName] as $permissionItem) {
                         foreach ($permissionItem['operations_array'] ?? [] as $op) {
@@ -648,7 +631,7 @@ public function removeRole($roleId)
         ]);
 
         $user = User::findOrFail($this->user_id);
-        
+
         // Sync user's roles using the pivot table
         $user->rolePermissions()->sync($this->selectedRoles);
 
@@ -660,9 +643,9 @@ public function removeRole($roleId)
         UserPermission::updateOrCreate(
             ['user_id' => $this->user_id],
             [
-                'sidebar_permissions' => !empty($userSpecificSidebarPermissions) ? 
+                'sidebar_permissions' => !empty($userSpecificSidebarPermissions) ?
                     json_encode(array_values($userSpecificSidebarPermissions)) : null,
-                'page_wise_permissions' => !empty($userSpecificPagePermissions) ? 
+                'page_wise_permissions' => !empty($userSpecificPagePermissions) ?
                     json_encode(array_values($userSpecificPagePermissions)) : null,
             ]
         );

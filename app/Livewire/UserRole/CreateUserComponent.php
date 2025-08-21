@@ -14,12 +14,26 @@ class CreateUserComponent extends Component
     public $email;
     public $password;
     public $password_confirmation;
-    public $selectedRoles = []; // <-- multiple role IDs
+    public $selectedRoles = [];
     public $roles;
 
     public function mount()
     {
         $this->roles = RoleAndPermission::all();
+    }
+
+    public function toggleRole($roleId)
+    {
+        if (in_array($roleId, $this->selectedRoles)) {
+            $this->selectedRoles = array_diff($this->selectedRoles, [$roleId]);
+        } else {
+            $this->selectedRoles[] = $roleId;
+        }
+    }
+
+    public function removeRole($roleId)
+    {
+        $this->selectedRoles = array_diff($this->selectedRoles, [$roleId]);
     }
 
     public function createUser()
@@ -32,14 +46,13 @@ class CreateUserComponent extends Component
             'selectedRoles.*' => 'exists:role_and_permissions,id',
         ]);
 
-        // create user
         $user = User::create([
             'name'     => $this->name,
             'email'    => $this->email,
             'password' => Hash::make($this->password),
         ]);
 
-        // attach multiple roles (make sure User model has belongsToMany relation)
+        // Attach roles
         $user->rolePermissions()->sync($this->selectedRoles);
 
         session()->flash('success', 'User created successfully!');

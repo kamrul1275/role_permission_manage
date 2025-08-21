@@ -37,7 +37,8 @@
 
 
 	<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+{{-- <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" /> --}}
+
 
 
 
@@ -86,7 +87,8 @@
 	<script src="{{asset('backend/js/jquery-3.7.1.min.js')}}"></script>
 
 		<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+{{-- <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script> --}}
+
 
 
 	<!-- Feather Icon JS -->
@@ -108,6 +110,29 @@
 	<!-- Datetimepicker JS -->
 	<script src="{{ asset('backend/js/moment.min.js') }}"></script>
 	<script src="{{ asset('backend/js/bootstrap-datetimepicker.min.js') }}"></script>
+
+	<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Feather + tooltips (you already had this)
+    feather.replace();
+    const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltips.map(t => new bootstrap.Tooltip(t));
+
+    // ✅ Initialize Select2 for all selects with class
+    $('.js-role-select').select2();
+});
+
+// Re-init after Livewire navigation
+document.addEventListener("livewire:navigated", () => {
+    feather.replace();
+    const tooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltips.map(t => new bootstrap.Tooltip(t));
+
+    // ✅ Re-init Select2 after Livewire updates
+    $('.js-role-select').select2();
+});
+</script>
+
 
 
 	<script>  

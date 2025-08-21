@@ -59,14 +59,6 @@
 					</a>
 					<div class="dropdown-menu menu-drop-user">
 						<div class="profilename">
-							<div class="profileset">
-								<span class="user-img"><img src="{{ asset('backend/img/avatar/icon2.png') }}" alt="">
-									<span class="status online"></span></span>
-								<div class="profilesets">
-									<h6>{{ Auth::user()->name }}</h6>
-									
-								</div>
-							</div>
 							<hr class="m-0">
 							<a class="dropdown-item" href="profile.html"> <i class="me-2" data-feather="user"></i> My Profile</a>
 							<a class="dropdown-item" href="general-settings.html"><i class="me-2" data-feather="settings"></i>Settings</a>
