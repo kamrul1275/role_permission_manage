@@ -9,7 +9,7 @@
                     href="{{ route('assign_user_role') }}"> <i data-feather="plus-circle" class="me-1"></i> Assign User
                     Role </a> @endcan --}} </div>
         </div>
-        <div class="card-body table-responsive bg-amber-600 text-white position-relative">
+        <div class="card-body table-responsive  text-white position-relative">
             <table class="table table-striped mb-0">
                 <thead class="table-light custom-table-header">
                     <tr>
@@ -55,8 +55,8 @@
                     $user->userPermissions->page_wise_permissions : []; @endphp <tr>
                         <td>{{ $users->firstItem() + $index }}</td>
                         <td>{{ $user->name }}</td>
-                        <td>{{ $user->email }}</td>  
-                        <td> @if($user->rolePermissions->isNotEmpty()) 
+                        <td>{{ $user->email }}</td>
+                        <td> @if($user->rolePermissions->isNotEmpty())
                             <div class="mb-2 d-flex align-items-start">
                                 <div class="d-flex flex-wrap gap-1"> @foreach ($user->rolePermissions as $role) <span
                                         class="badge bg-info clickable-role d-flex align-items-center py-1 px-2"
@@ -74,9 +74,11 @@
                                 <div class="mt-2"> <strong class="me-1">Custom Permissions:</strong>
                                     <div class="d-flex flex-wrap gap-1 mt-1"> @forelse ($userCustomPermissions as $perm)
                                         <span class="badge bg-success">{{ $perm }}</span> @empty <span
-                                            class="text-muted">No Custom Permissions</span> @endforelse </div>
+                                            class="text-muted">No Custom Permissions</span> @endforelse
+                                    </div>
                                 </div>
-                            </div> @endforeach @else <span class="text-muted">No Role Assigned</span> @endif </td> 0
+                            </div> @endforeach @else <span class="text-muted">No Role Assigned</span> @endif
+                        </td> 0
                         <td>
                             <div class="d-flex gap-2"> @can('update', $user) <a
                                     href="{{ route('edit_user_role', ['id' => $user->id]) }}" wire:navigate

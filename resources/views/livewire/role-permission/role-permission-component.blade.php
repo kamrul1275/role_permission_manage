@@ -236,21 +236,7 @@
     </div>
   </div>
 
-  <style>
-    .custom-table-header {
-      background-color: #FF9F43 !important;
-      color: white !important;
-    }
 
-    .custom-table-header th {
-      color: white !important;
-    }
-
-    .table th,
-    .table td {
-      padding: 5px !important;
-    }
-  </style>
 
 
   <script>
